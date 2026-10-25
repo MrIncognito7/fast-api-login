@@ -1,0 +1,19 @@
+# --- Core API ---
+fastapi
+uvicorn[standard]
+
+# --- Database ---
+sqlalchemy
+
+# --- Auth ---
+bcrypt
+PyJWT
+pydantic[email]
+slowapi
+
+# --- Environment variables (.env) ---
+python-dotenv
+
+# --- Testing (optional) ---
+pytest
+httpx
