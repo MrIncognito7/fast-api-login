@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+from app.config import get_settings
 from app.database import init_db
 from app.routers import auth
 from app.routers.auth import limiter
@@ -21,9 +22,10 @@ app = FastAPI(title="FastAPI Login System", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten this before deploying publicly
+    allow_origins=settings.cors_origin_list,  # set CORS_ORIGINS in .env for production
     allow_methods=["*"],
     allow_headers=["*"],
 )

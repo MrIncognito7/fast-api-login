@@ -136,6 +136,43 @@ def register(data: RegisterInput, request: Request, db: Session = Depends(get_db
     return {"message": "OTP sent successfully. Please verify your email using the OTP."}
 
 
+class ResendOtpInput(BaseModel):
+    email: EmailStr
+
+
+@router.post("/resend-otp")
+@limiter.limit("3/minute")
+def resend_otp(data: ResendOtpInput, request: Request, db: Session = Depends(get_db)):
+    """
+    Re-send the OTP for a pending (not-yet-verified) signup. Use this instead
+    of calling /register again if the original code expired or never arrived.
+    """
+    email = data.email.lower()
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    db.query(EmailOtp).filter(EmailOtp.email == email, EmailOtp.used == False).delete()  # noqa: E712
+    otp = generate_otp()
+    otp_record = EmailOtp(
+        email=email,
+        otp=otp,
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRE_MINUTES),
+        used=False,
+        attempts=0,
+    )
+    db.add(otp_record)
+    db.commit()
+
+    try:
+        send_email(email, otp)
+    except Exception:
+        db.delete(otp_record)
+        db.commit()
+        raise HTTPException(status_code=500, detail="Failed to send OTP")
+
+    return {"message": "OTP resent. Please verify your email using the new code."}
+
+
 @router.post("/verify-otp", response_model=AuthOut, status_code=status.HTTP_201_CREATED)
 def verify_otp(data: VerifyOtpInput, db: Session = Depends(get_db)):
     """Step 2 of signup: check the OTP, then create the user and log them in."""
@@ -193,3 +230,14 @@ def login(data: LoginInput, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserOut)
 def me(current_user: User = Depends(get_current_user)):
     return UserOut(id=current_user.id, name=current_user.name, email=current_user.email)
+
+
+@router.post("/logout")
+def logout(current_user: User = Depends(get_current_user)):
+    """
+    Placeholder. This API is stateless JWT auth, so there's currently nothing
+    server-side to invalidate — the client should just discard the token.
+    If you add token revocation (a denylist or a token_version column on
+    User), check it here and in get_current_user.
+    """
+    return {"message": "Logged out. Discard the access token on the client."}

@@ -1,21 +1,11 @@
-import os
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
-from dotenv import load_dotenv
 
-load_dotenv()
-
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise RuntimeError(
-        "SECRET_KEY is not set. Copy .env.example to .env and put a long random "
-        'value in it:  python3 -c "import secrets; print(secrets.token_hex(32))"'
-    )
+from app.config import get_settings
 
 ALGORITHM = "HS256"
-TOKEN_EXPIRE_DAYS = int(os.getenv("TOKEN_EXPIRE_DAYS", "7"))
 
 
 def hash_password(password: str) -> str:
@@ -30,14 +20,16 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 
 def create_token(user_id: int) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRE_DAYS)
-    return jwt.encode({"sub": str(user_id), "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
+    settings = get_settings()
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.token_expire_days)
+    return jwt.encode({"sub": str(user_id), "exp": expire}, settings.secret_key, algorithm=ALGORITHM)
 
 
 def decode_token(token: str) -> int | None:
     """Returns the user id, or None if the token is invalid or expired."""
+    settings = get_settings()
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
         return int(payload["sub"])
     except (jwt.PyJWTError, KeyError, ValueError):
         return None

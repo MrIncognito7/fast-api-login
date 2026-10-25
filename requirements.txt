@@ -4,15 +4,16 @@ uvicorn[standard]
 
 # --- Database ---
 sqlalchemy
+psycopg2-binary  # Postgres driver, only needed if you use DATABASE_URL=postgresql://...
 
 # --- Auth ---
 bcrypt
 PyJWT
 pydantic[email]
+pydantic-settings
 slowapi
 
-# --- Environment variables (.env) ---
-python-dotenv
+
 
 # --- Testing (optional) ---
 pytest
